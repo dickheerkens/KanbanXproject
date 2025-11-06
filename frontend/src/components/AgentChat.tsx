@@ -57,7 +57,7 @@ const AgentChat: React.FC<Props> = ({ token, onClose }) => {
   }
 
   return (
-    <div className="agent-chat">
+    <div className="agent-chat agent-fixed" role="complementary" aria-label="AI Assistant Panel">
       <div className="chat-header">
         <div className="chat-title">
           <span className="bot-icon">🤖</span>
@@ -66,7 +66,7 @@ const AgentChat: React.FC<Props> = ({ token, onClose }) => {
         <button className="close-btn" onClick={onClose}>✕</button>
       </div>
 
-      <div className="chat-messages">
+  <div className="chat-messages" aria-live="polite">
         {messages.map((msg, idx) => (
           <div key={idx} className={`message ${msg.role}`}>
             <div className="message-bubble">

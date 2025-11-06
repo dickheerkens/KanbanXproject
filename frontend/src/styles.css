@@ -51,6 +51,35 @@ body { font-family: system-ui, Arial, sans-serif; margin:0; background:#111; col
 
 .task-card { cursor: pointer; }
 .task-card:focus { outline: 2px solid #3d63ff; outline-offset: 2px; }
+
+/* Fixed Agent Panel */
+.agent-fixed {
+	position: fixed;
+	top: 0;
+	right: 0;
+	height: 100vh;
+	width: 380px;
+	max-width: 100%;
+	background:#1b1b1f;
+	border-left: 1px solid #2a2a31;
+	box-shadow: -4px 0 18px -6px rgba(0,0,0,0.6);
+	display: flex;
+	flex-direction: column;
+	z-index: 900; /* below modal (1000) but above board */
+	animation: slideIn .22s ease;
+}
+
+@keyframes slideIn { from { transform: translateX(25px); opacity:0;} to { transform: translateX(0); opacity:1;} }
+
+.agent-fixed .chat-header { background:#202026; border-bottom:1px solid #2a2a31; }
+.agent-fixed .chat-messages { flex:1; overflow-y:auto; padding: .75rem .85rem 1rem; }
+.agent-fixed .chat-input { border-top:1px solid #2a2a31; background:#1f1f24; }
+
+/* Responsive: full width at narrow screens */
+@media (max-width: 860px) {
+	.agent-fixed { width:100%; border-left:0; box-shadow: 0 -4px 18px -6px rgba(0,0,0,0.6); height: 55vh; top:auto; bottom:0; border-top:1px solid #2a2a31; }
+	.agent-fixed .chat-header h3 { font-size: .95rem; }
+}
 .session-bar { display:flex; justify-content:space-between; padding:8px 12px; background:#222; align-items:center; }
 .session-bar button { background:#444; color:#eee; border:0; padding:6px 10px; cursor:pointer; }
 .login-panel { max-width:320px; margin:64px auto; background:#1e1e1e; padding:24px; border-radius:8px; box-shadow:0 0 0 1px #333; }
