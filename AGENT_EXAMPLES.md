@@ -2,6 +2,13 @@
 
 This guide shows **real examples** you can copy-paste into the agent chat interface or test via API.
 
+## ✨ NEW: Natural Language Support
+
+The agent now understands natural language! You can:
+- 🎯 **Reference tasks by title** instead of UUID: `"Move 'create api endpoint' to done"`
+- 🔄 **Flexible status names**: Use spaces, hyphens, or underscores (`"ai prep"`, `"ai-prep"`, `"ai_prep"` all work!)
+- 💬 **Conversational commands**: `"update my task to in progress"` works just like technical commands
+
 ## 🚀 Quick Start
 
 1. Open http://localhost:5173
@@ -96,8 +103,8 @@ move task: d803162f-b069-4335-8206-e91edfd0a1a4 to in-progress
 **Valid columns:**
 - `backlog` - Initial state
 - `todo` - Ready to start
-- `ai-prep` - Being prepared by AI
-- `in-progress` - Actively being worked on
+- `ai-prep` or `ai prep` - Being prepared by AI
+- `in-progress` or `in progress` - Actively being worked on
 - `verify` - Ready for review
 - `done` - Completed
 
@@ -106,6 +113,39 @@ move task: d803162f-b069-4335-8206-e91edfd0a1a4 to in-progress
 move task: d803162f... to done
 update task: d803162f... to verify
 change task: d803162f... status to todo
+```
+
+---
+
+### 🆕 5b. **Move Task by Title (Natural Language)**
+
+**NEW!** You can now move tasks by referencing their title instead of UUID:
+
+```
+Move 'Implement user authentication' to in progress
+```
+
+**What it does:** Finds the task by title and moves it to the specified column.
+
+**More natural examples:**
+```
+Move "Design landing page" to ai prep
+Update 'Fix database bug' to done
+Move create mcp endpoint to verify
+```
+
+**Pro tips:**
+- ✅ Works with quotes (`'title'` or `"title"`) or without
+- ✅ Case-insensitive matching
+- ✅ Accepts spaces in status names: `"ai prep"`, `"in progress"`
+- ⚠️ You must claim the task first (see command #3)
+- ⚠️ If multiple tasks match, it picks the first match - use UUID for precision
+
+**Example workflow:**
+```
+1. "show available tasks"
+2. "claim task: abc123..."
+3. "Move 'task title' to in progress"
 ```
 
 ---
@@ -245,7 +285,8 @@ curl -s http://localhost:3001/api/agent/chat \
 
 ### ✅ DO:
 - Claim tasks before moving them
-- Use full task IDs (UUIDs)
+- Use full task IDs (UUIDs) for precision
+- **NEW:** Use task titles in quotes for convenience!
 - Release tasks when done
 - Add comments to track progress
 
@@ -253,6 +294,7 @@ curl -s http://localhost:3001/api/agent/chat \
 - Try to move tasks you haven't claimed
 - Use partial task IDs (won't match)
 - Forget to release tasks (they'll stay locked for 30 min)
+- Worry about status format - "ai prep", "ai-prep", "ai_prep" all work!
 
 ---
 
@@ -307,16 +349,23 @@ Each command shows:
 
 ## 📚 Quick Reference
 
-| What You Want | Command Example |
-|---------------|----------------|
-| List tasks | `show available tasks` |
-| Get details | `show task: <id>` |
-| Claim task | `claim task: <id>` |
-| Move task | `move task: <id> to done` |
-| Add comment | `comment on task: <id> - your note` |
-| Release task | `release task: <id>` |
-| Create subtask | `create subtask for: <id> - title` |
-| Ask question | `what should I work on next?` (requires LLM) |
+| What You Want | Command Example | Alternative (Natural Language) |
+|---------------|----------------|--------------------------------|
+| List tasks | `show available tasks` | `what can I work on?` |
+| Get details | `show task: <id>` | - |
+| Claim task | `claim task: <id>` | - |
+| Move task (UUID) | `move task: <id> to done` | `update task: <id> to in progress` |
+| **🆕 Move task (Title)** | `Move 'task title' to done` | `Update "my task" to ai prep` |
+| Add comment | `comment on task: <id> - note` | - |
+| Release task | `release task: <id>` | - |
+| Create subtask | `create subtask for: <id> - title` | - |
+| Ask question | `what should I work on next?` | Requires LLM setup |
+
+**Status Format Flexibility:**
+- ✅ `ai prep` (spaces)
+- ✅ `ai-prep` (hyphens)  
+- ✅ `ai_prep` (underscores)
+- ✅ `in progress`, `in-progress`, `in_progress` all work!
 
 ---
 
