@@ -78,13 +78,27 @@ async function parseIntent(message: string): Promise<{ intent: string; params: a
   
   // Update status
   if (lower.match(/move|update|change.*status/)) {
+    // Try to match task by UUID first
     const taskIdMatch = message.match(/task[:\s]+([a-f0-9-]+)/i);
-    // Accept both hyphens and underscores in status names
-    const statusMatch = lower.match(/to\s+(backlog|todo|ai[-_]prep|in[-_]progress|verify|done)/);
-    if (taskIdMatch && statusMatch && statusMatch[1]) {
+    // Try to match task by title (in quotes or after "move/update")
+    const taskTitleMatch = message.match(/['"]([^'"]+)['"]/) || 
+                          message.match(/(?:move|update)\s+(.+?)\s+to\s+/i);
+    
+    // Accept status names with spaces, hyphens, or underscores
+    const statusMatch = lower.match(/to\s+(backlog|todo|ai[\s\-_]?prep|in[\s\-_]?progress|verify|done)/);
+    
+    if (statusMatch && statusMatch[1]) {
       // Normalize status to use underscores (database format)
-      const normalizedStatus = statusMatch[1].replace(/-/g, '_');
-      return { intent: 'update_status', params: { taskId: taskIdMatch[1], status: normalizedStatus } };
+      const normalizedStatus = statusMatch[1].replace(/[\s-]/g, '_');
+      
+      if (taskIdMatch) {
+        // UUID provided
+        return { intent: 'update_status', params: { taskId: taskIdMatch[1], status: normalizedStatus } };
+      } else if (taskTitleMatch && taskTitleMatch[1]) {
+        // Title provided - need to look up task
+        const taskTitle = taskTitleMatch[1].trim();
+        return { intent: 'update_status', params: { taskTitle, status: normalizedStatus } };
+      }
     }
   }
   
@@ -182,7 +196,29 @@ async function executeAction(intent: string, params: any, agentToken: string): P
       }
       
       case 'update_status': {
-        const res = await fetch(`${baseUrl}/tasks/${params.taskId}/status`, {
+        let taskId = params.taskId;
+        
+        // If title provided instead of ID, look up the task
+        if (!taskId && params.taskTitle) {
+          const db = await getDatabase();
+          const task = await db.get<{ id: string }>(
+            'SELECT id FROM tasks WHERE LOWER(title) LIKE ? OR LOWER(description) LIKE ? LIMIT 1',
+            [`%${params.taskTitle.toLowerCase()}%`, `%${params.taskTitle.toLowerCase()}%`]
+          );
+          
+          if (!task) {
+            return {
+              type: 'update',
+              endpoint: '/api/mcp/tasks/lookup',
+              method: 'GET',
+              error: `Could not find a task matching "${params.taskTitle}". Try:\n• Using the exact task UUID\n• Asking "show available tasks" first\n• Using a more specific title`
+            };
+          }
+          
+          taskId = task.id;
+        }
+        
+        const res = await fetch(`${baseUrl}/tasks/${taskId}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agentToken}` },
           body: JSON.stringify({ status: params.status })
@@ -190,7 +226,7 @@ async function executeAction(intent: string, params: any, agentToken: string): P
         const data = await res.json() as any;
         return {
           type: 'update',
-          endpoint: `/api/mcp/tasks/${params.taskId}/status`,
+          endpoint: `/api/mcp/tasks/${taskId}/status`,
           method: 'PATCH',
           params: { status: params.status },
           result: data.success ? data.message : null,
@@ -287,7 +323,12 @@ function generateResponse(intent: string, action: AgentAction, params: any): str
       return `✅ Released task ${params.taskId.slice(0, 8)}...`;
       
     case 'update_status':
-      return `✅ Moved task ${params.taskId.slice(0, 8)}... to "${params.status}".`;
+      const taskIdDisplay = params.taskId || 'task';
+      const displayId = typeof taskIdDisplay === 'string' && taskIdDisplay.length > 16 
+        ? taskIdDisplay.slice(0, 8) + '...' 
+        : taskIdDisplay;
+      const titleInfo = params.taskTitle ? ` ("${params.taskTitle}")` : '';
+      return `✅ Moved task ${displayId}${titleInfo} to "${params.status}".`;
       
     case 'add_comment':
       return `✅ Added comment to task ${params.taskId.slice(0, 8)}...`;
