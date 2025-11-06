@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kanbanx-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - DATABASE_PATH=/app/data/kanbanx.db
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - kanbanx_data:/app/data
+    depends_on:
+      - database
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kanbanx-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev
+
+  database:
+    image: alpine:3.18
+    container_name: kanbanx-db
+    volumes:
+      - kanbanx_data:/data
+    command: tail -f /dev/null  # Keep container running for volume
+
+volumes:
+  kanbanx_data:
+    driver: local
+
+networks:
+  default:
+    driver: bridge
