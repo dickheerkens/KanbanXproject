@@ -65,3 +65,15 @@ export function nextStatus(current: TaskStatus, direction: 'forward' | 'backward
   if (direction === 'backward' && idx > 0) return statusOrder[idx - 1] as TaskStatus;
   return null;
 }
+
+// Generic task update helper (partial fields)
+export async function updateTask(token: string, taskId: string, updates: Partial<Pick<Task, 'title' | 'description' | 'status' | 'service_class' | 'ai_eligible' | 'tags'>>) {
+  const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(updates)
+  });
+  const body = await res.json();
+  if (!body.success) throw new Error(body.error || 'Update failed');
+  return body.message as string;
+}

@@ -40,6 +40,13 @@ body { font-family: system-ui, Arial, sans-serif; margin:0; background:#111; col
 .modal-body .description { margin-top: 1rem; }
 .modal-body .description p { margin: .4rem 0 0; line-height: 1.4; font-size: .9rem; }
 .modal-body .tag.big { background:#2e2e35; padding: .35rem .55rem; border-radius: 6px; font-size: .65rem; }
+.description-edit { margin-top: 1rem; display: flex; flex-direction: column; gap: .5rem; }
+.description-editor { width:100%; background:#24242a; color:#f5f5f5; border:1px solid #33343a; border-radius:8px; padding:.65rem .75rem; font-size:.8rem; line-height:1.4; min-height:160px; resize:vertical; font-family: inherit; }
+.description-editor:focus { outline:2px solid #3d63ff; outline-offset:2px; }
+.edit-actions { display:flex; justify-content:flex-end; }
+.edit-actions button { background:#3d63ff; color:#fff; border:0; border-radius:6px; font-size:.7rem; padding:.45rem .75rem; cursor:pointer; }
+.edit-actions button[disabled] { opacity:.5; cursor: not-allowed; }
+.error-text { color:#ff6b6b; font-size:.65rem; }
 
 .modal-footer { padding: .85rem 1.25rem 1.25rem; border-top: 1px solid #2e2e35; display: flex; justify-content: flex-end; gap:.5rem; }
 .modal-footer button { background:#3d63ff; color:#fff; border:0; border-radius: 6px; font-size:.8rem; letter-spacing:.3px; padding:.55rem .9rem; cursor:pointer; }

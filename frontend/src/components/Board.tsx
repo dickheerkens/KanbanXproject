@@ -135,6 +135,8 @@ const Board: React.FC<Props> = ({ token }) => {
           <TaskModal
             onClose={closeTask}
             task={findTask(selectedTaskId, board)}
+            token={token}
+            onSaved={() => { load(); }}
           />
         )}
       </div>
