@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateHuman } from '../middleware/auth';
+import { authenticateHuman, AuthService } from '../middleware/auth';
 import { ApiResponse } from '../types';
 import { getDatabase } from '../config/database';
 import { llmService } from '../services/llm';
@@ -79,9 +79,12 @@ async function parseIntent(message: string): Promise<{ intent: string; params: a
   // Update status
   if (lower.match(/move|update|change.*status/)) {
     const taskIdMatch = message.match(/task[:\s]+([a-f0-9-]+)/i);
-    const statusMatch = lower.match(/to\s+(backlog|todo|ai_prep|in_progress|verify|done)/);
-    if (taskIdMatch && statusMatch) {
-      return { intent: 'update_status', params: { taskId: taskIdMatch[1], status: statusMatch[1] } };
+    // Accept both hyphens and underscores in status names
+    const statusMatch = lower.match(/to\s+(backlog|todo|ai[-_]prep|in[-_]progress|verify|done)/);
+    if (taskIdMatch && statusMatch && statusMatch[1]) {
+      // Normalize status to use underscores (database format)
+      const normalizedStatus = statusMatch[1].replace(/-/g, '_');
+      return { intent: 'update_status', params: { taskId: taskIdMatch[1], status: normalizedStatus } };
     }
   }
   
@@ -318,16 +321,19 @@ router.post('/chat', authenticateHuman, async (req, res) => {
     const db = getDatabase();
     
     // Get or create default agent for demo
-    let agent = await db.get<{ id: string; token_hash: string }>(
-      `SELECT id, token_hash FROM agents WHERE name = 'Demo Chat Agent' LIMIT 1`
+    let agent = await db.get<{ id: string; role: string; capabilities: string }>(
+      `SELECT id, role, capabilities FROM agents WHERE name = 'Demo Chat Agent' LIMIT 1`
     );
     
     if (!agent) {
       // Create demo agent if doesn't exist
       const agentId = 'agent-demo-chat-001';
-      const demoToken = 'demo-agent-token-12345'; // In production, generate secure token
+      const capabilities = ['query_tasks', 'claim_task', 'release_task', 'move', 'comment', 'create_subtask'];
+      
+      // We still need to store a token_hash even though we use JWT
+      // This is for the database schema requirement
       const bcrypt = await import('bcryptjs');
-      const tokenHash = await bcrypt.hash(demoToken, 12);
+      const dummyHash = await bcrypt.hash('not-used-jwt-only', 10);
       
       await db.run(
         `INSERT INTO agents (id, name, role, token_hash, capabilities, created_at, updated_at, is_active)
@@ -335,23 +341,30 @@ router.post('/chat', authenticateHuman, async (req, res) => {
         [
           agentId,
           'Demo Chat Agent',
-          'prep',
-          tokenHash,
-          JSON.stringify(['query_tasks', 'claim_task', 'release_task', 'update_status', 'add_comment', 'create_subtask']),
+          'prep', // prep role can access todo and ai_prep tasks
+          dummyHash,
+          JSON.stringify(capabilities),
           new Date().toISOString(),
           new Date().toISOString(),
           1
         ]
       );
       
-      agent = { id: agentId, token_hash: tokenHash };
+      agent = { id: agentId, role: 'prep', capabilities: JSON.stringify(capabilities) };
     }
+    
+    // Generate JWT token for the agent
+    const authService = AuthService.getInstance();
+    const agentToken = authService.generateAgentToken({
+      id: agent.id,
+      role: agent.role,
+      capabilities: JSON.parse(agent.capabilities)
+    });
     
     // Parse intent from natural language (now async with LLM support)
     const { intent, params } = await parseIntent(message);
     
-    // Execute action using agent token
-    const agentToken = 'demo-agent-token-12345'; // In production, decrypt from hash
+    // Execute action using agent JWT token
     const action = await executeAction(intent, params, agentToken);
     
     // Generate response - use LLM if available, otherwise fallback
