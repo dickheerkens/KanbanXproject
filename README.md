@@ -44,6 +44,23 @@ npm install
 npm run migrate
 ```
 
+5. **Configure AI features (Optional)**
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env and add your Gen AI Platform credentials:
+# AZURE_OPENAI_API_KEY=your-api-key-here
+# AZURE_OPENAI_ENDPOINT=https://api-ai.digitaldev.nl
+# AZURE_OPENAI_API_VERSION=2024-02-15-preview
+# AZURE_OPENAI_DEPLOYMENT=gpt-4o
+```
+
+> **Note**: LLM features are optional. The agent chat will work with basic regex-based intent parsing if no API key is configured. To get an API key, visit the [Gen AI Platform Portal](https://portal.api-ai.digitaldev.nl/).
+
+### Running the Application
+```
+
 4. Start the development server:
 ```bash
 npm run dev
@@ -120,6 +137,31 @@ KanbanX supports four types of AI agents:
 2. **Prep Agent** - Prepares tasks for development
 3. **Review Agent** - Reviews completed work
 4. **Merge Agent** - Handles final integration
+
+### Agent Chat Commands
+
+Click the "🤖 Show Agent" button in the UI and try these natural language commands:
+
+**Task Query**
+- `show available tasks` - List all tasks ready to be claimed
+- `what tasks are in progress?` - Query tasks by status
+- `show me task: <task-id>` - Get detailed task information
+
+**Task Management**
+- `claim task: <task-id>` - Claim a task to work on it
+- `release task: <task-id>` - Release a claimed task
+- `move task: <task-id> to done` - Update task status (columns: backlog, todo, ai-prep, in-progress, verify, done)
+
+**Collaboration**
+- `comment on task: <task-id> - this looks great!` - Add comments to tasks
+- `create subtask for: <task-id> - write unit tests` - Create subtasks
+
+**General Queries** (requires LLM configuration)
+- `What's the status of the project?`
+- `Which tasks should I prioritize?`
+- `Tell me about task dependencies`
+
+> **🤖 Enhanced with LLM**: When configured with Gen AI Platform credentials, the agent uses GPT-4o for natural language understanding, providing more flexible command parsing and intelligent responses. Without LLM, it uses regex-based pattern matching.
 
 ## 🗄️ Database Schema
 

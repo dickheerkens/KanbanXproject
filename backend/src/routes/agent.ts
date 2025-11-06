@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticateHuman } from '../middleware/auth';
 import { ApiResponse } from '../types';
 import { getDatabase } from '../config/database';
+import { llmService } from '../services/llm';
 
 const router = express.Router();
 
@@ -21,8 +22,37 @@ interface AgentAction {
   error?: string;
 }
 
-// Simple intent classifier (can be replaced with LLM later)
-function parseIntent(message: string): { intent: string; params: any } {
+// Enhanced intent classifier - uses LLM when available, falls back to regex
+async function parseIntent(message: string): Promise<{ intent: string; params: any }> {
+  // Try LLM-based parsing first if available
+  if (llmService.isAvailable()) {
+    try {
+      const llmResult = await llmService.parseIntent(message);
+      
+      // Map LLM intents to our internal format
+      const intentMapping: Record<string, string> = {
+        'query_tasks': 'query_available',
+        'claim_task': 'claim_task',
+        'release_task': 'release_task',
+        'update_status': 'update_status',
+        'add_comment': 'add_comment',
+        'get_task': 'get_task',
+        'create_subtask': 'create_subtask',
+        'general_query': 'general_query'
+      };
+      
+      const mappedIntent = intentMapping[llmResult.intent] || llmResult.intent;
+      
+      // If confidence is high enough, use LLM result
+      if (llmResult.confidence > 0.6) {
+        return { intent: mappedIntent, params: llmResult.entities };
+      }
+    } catch (error) {
+      console.warn('LLM intent parsing failed, falling back to regex:', error);
+    }
+  }
+  
+  // Fallback to regex-based parsing
   const lower = message.toLowerCase();
   
   // Query available tasks
@@ -93,7 +123,7 @@ function parseIntent(message: string): { intent: string; params: any } {
     }
   }
   
-  return { intent: 'unknown', params: {} };
+  return { intent: 'general_query', params: { message } };
 }
 
 // Execute agent action using MCP endpoints
@@ -317,15 +347,35 @@ router.post('/chat', authenticateHuman, async (req, res) => {
       agent = { id: agentId, token_hash: tokenHash };
     }
     
-    // Parse intent from natural language
-    const { intent, params } = parseIntent(message);
+    // Parse intent from natural language (now async with LLM support)
+    const { intent, params } = await parseIntent(message);
     
     // Execute action using agent token
     const agentToken = 'demo-agent-token-12345'; // In production, decrypt from hash
     const action = await executeAction(intent, params, agentToken);
     
-    // Generate response
-    const responseText = generateResponse(intent, action, params);
+    // Generate response - use LLM if available, otherwise fallback
+    let responseText: string;
+    if (llmService.isAvailable() && intent !== 'general_query') {
+      try {
+        responseText = await llmService.generateResponse(message, [action]);
+      } catch {
+        responseText = generateResponse(intent, action, params);
+      }
+    } else if (intent === 'general_query' && llmService.isAvailable()) {
+      // Handle general queries with LLM
+      try {
+        const llmResponse = await llmService.chat([
+          { role: 'system', content: 'You are a helpful AI assistant managing a Kanban board. Answer user questions helpfully and concisely.' },
+          { role: 'user', content: message }
+        ]);
+        responseText = llmResponse.content;
+      } catch {
+        responseText = "I can help you manage tasks on the Kanban board. Try asking me to 'show available tasks' or 'claim task: <id>'.";
+      }
+    } else {
+      responseText = generateResponse(intent, action, params);
+    }
     
     const response: ApiResponse<ChatMessage> = {
       success: true,
