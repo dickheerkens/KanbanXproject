@@ -7,9 +7,10 @@ interface Props {
   title: string;
   status: TaskStatus;
   tasks: Task[];
+  onTaskClick?: (task: Task) => void;
 }
 
-const Column: React.FC<Props> = ({ title, status, tasks }) => {
+const Column: React.FC<Props> = ({ title, status, tasks, onTaskClick }) => {
   return (
     <div className="column">
       <div className="column-header">
@@ -32,7 +33,7 @@ const Column: React.FC<Props> = ({ title, status, tasks }) => {
                     {...provided.dragHandleProps}
                     className={snapshot.isDragging ? 'dragging' : ''}
                   >
-                    <TaskCard task={task} index={index} />
+                    <TaskCard task={task} index={index} onClick={(t)=>{ if(onTaskClick) onTaskClick(t); }} />
                   </div>
                 )}
               </Draggable>

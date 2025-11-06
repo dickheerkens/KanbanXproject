@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
-import { BoardState, TaskStatus } from '../types';
+import { BoardState, TaskStatus, Task } from '../types';
 import { fetchBoard, createTask } from '../services/api';
 import Column from './Column';
 import AgentChat from './AgentChat';
+import TaskModal from './TaskModal';
 
 interface Props { token: string; }
 
@@ -15,6 +16,21 @@ const Board: React.FC<Props> = ({ token }) => {
   const [newDesc, setNewDesc] = useState('');
   const [creating, setCreating] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  const openTask = useCallback((id: string) => {
+    setSelectedTaskId(id);
+  }, []);
+
+  const closeTask = useCallback(() => setSelectedTaskId(null), []);
+
+  function findTask(id: string, b: BoardState): Task | null {
+    for (const col of Object.values(b)) {
+      const t = (col as Task[]).find(task => task.id === id);
+      if (t) return t;
+    }
+    return null;
+  }
 
   async function load() {
     setLoading(true); setError(null);
@@ -104,17 +120,23 @@ const Board: React.FC<Props> = ({ token }) => {
         {board && (
           <DragDropContext onDragEnd={handleDragEnd}>
             <div className="board-grid">
-              <Column title="Backlog" status="backlog" tasks={board.backlog} />
-              <Column title="To Do" status="todo" tasks={board.todo} />
-              <Column title="AI Prep" status="ai_prep" tasks={board.ai_prep} />
-              <Column title="In Progress" status="in_progress" tasks={board.in_progress} />
-              <Column title="Verify" status="verify" tasks={board.verify} />
-              <Column title="Done" status="done" tasks={board.done} />
+              <Column title="Backlog" status="backlog" tasks={board.backlog} onTaskClick={(t)=>openTask(t.id)} />
+              <Column title="To Do" status="todo" tasks={board.todo} onTaskClick={(t)=>openTask(t.id)} />
+              <Column title="AI Prep" status="ai_prep" tasks={board.ai_prep} onTaskClick={(t)=>openTask(t.id)} />
+              <Column title="In Progress" status="in_progress" tasks={board.in_progress} onTaskClick={(t)=>openTask(t.id)} />
+              <Column title="Verify" status="verify" tasks={board.verify} onTaskClick={(t)=>openTask(t.id)} />
+              <Column title="Done" status="done" tasks={board.done} onTaskClick={(t)=>openTask(t.id)} />
             </div>
           </DragDropContext>
         )}
 
         {chatOpen && <AgentChat token={token} onClose={() => setChatOpen(false)} />}
+        {selectedTaskId && board && (
+          <TaskModal
+            onClose={closeTask}
+            task={findTask(selectedTaskId, board)}
+          />
+        )}
       </div>
     </div>
   );
